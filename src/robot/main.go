@@ -15,7 +15,7 @@ import (
 
 func main() {
 	//机器人appid 和 token
-	token := token.BotToken(0000, "000")
+	token := token.BotToken(0000, "0000")
 	var api client.OpenAPI
 	api.Token = token
 	api.SetupClient()
@@ -56,7 +56,7 @@ func start(token *token.Token, ws *dto.WebsocketAP, api *client.OpenAPI) {
 		err = wsClient.Identify()
 	}
 	if err != nil {
-		log.Println("[ws/session] Identify/Resume err %+v", err)
+		log.Println(fmt.Sprintf("[ws/session] Identify/Resume err %+v", err))
 		return
 	}
 	ctx := context.Background()
@@ -84,7 +84,7 @@ func start(token *token.Token, ws *dto.WebsocketAP, api *client.OpenAPI) {
 				msg = solia.Action + "『" + str + "』"
 			}
 			api.PostMessage(ctx, data.ChannelID, data.Author.ID, &dto.MessageToCreate{MsgID: data.ID, Content: msg})
-		} else if strings.Index(data.Content, solia.Cancel) > -1 {
+		} else if so.UserId != "" && so.UserId == data.Author.ID && strings.Index(data.Content, solia.Cancel) > -1 {
 			so.ReNew()
 			api.PostMessage(ctx, data.ChannelID, data.Author.ID, &dto.MessageToCreate{MsgID: data.ID, Content: "游戏结束"})
 		}
