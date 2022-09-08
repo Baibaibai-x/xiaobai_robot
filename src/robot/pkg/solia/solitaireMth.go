@@ -76,7 +76,10 @@ func (s *Solia) ReadStart(userID string) (string, error) {
 
 func (s *Solia) readLineNum(lineNum int) (string, error) {
 	num := 1
-	file, err := os.Open("./idiom.txt") //只是用来读的时候，用os.Open。相对路径，针对于同目录下。
+	strPath, _ := os.Getwd()
+	fmt.Println(strPath[:strings.LastIndex(strPath, "robot")+5])
+	strPath = strPath[:strings.LastIndex(strPath, "robot")+5]
+	file, err := os.Open(strPath + "./idiom.txt") //只是用来读的时候，用os.Open。绝对路径，获取robot路径
 	if err != nil {
 		fmt.Printf("打开文件失败,err:%v\n", err)
 		return "", err
@@ -132,7 +135,10 @@ func (s *Solia) ReadStr(content string) (string, error) {
 	if len([]rune(content)) >= 4 {
 		str1 := string([]rune(content)[3:])
 
-		file, err := os.Open("./idiom.txt") //只是用来读的时候，用os.Open。相对路径，针对于同目录下。
+		strPath, _ := os.Getwd()
+		fmt.Println(strPath[:strings.LastIndex(strPath, "robot")+5])
+		strPath = strPath[:strings.LastIndex(strPath, "robot")+5]
+		file, err := os.Open(strPath + "./idiom.txt") //只是用来读的时候，用os.Open。绝对路径，获取robot路径
 		if err != nil {
 			fmt.Printf("打开文件失败,err:%v\n", err)
 			return "", err
