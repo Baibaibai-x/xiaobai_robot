@@ -79,7 +79,7 @@ func (o *OpenAPI) SetupClient() {
 		// 设置请求之后的钩子，打印日志，判断状态码
 		OnAfterResponse(
 			func(client *resty.Client, resp *resty.Response) error {
-				fmt.Println("%v", respInfo(resp))
+				fmt.Println(fmt.Sprintf("%v", respInfo(resp)))
 				// 执行请求后过滤器
 				if err := DoRespFilterChains(resp.Request.RawRequest, resp.RawResponse); err != nil {
 					return err
@@ -88,7 +88,7 @@ func (o *OpenAPI) SetupClient() {
 				o.lastTraceID = traceID
 				// 非成功含义的状态码，需要返回 error 供调用方识别
 				if !IsSuccessStatus(resp.StatusCode()) {
-					return errors.New(string(resp.StatusCode()) + string(resp.Body()) + traceID)
+					return errors.New(fmt.Sprintf("%d%v%s", resp.StatusCode(), resp.Body(), traceID))
 				}
 				return nil
 			},
@@ -180,10 +180,10 @@ func (c *Client) Connect() error {
 	var err error
 	c.conn, _, err = websocket.DefaultDialer.Dial(c.session.URL, nil)
 	if err != nil {
-		log.Fatalln("%s, connect err: %v", c.session, err)
+		fmt.Println(fmt.Sprintf("%v, connect err: %v", c.session, err))
 		return err
 	}
-	log.Println("%s, url %s, connected", c.session, c.session.URL)
+	log.Println(fmt.Sprintf("%v, url %s, connected", c.session, c.session.URL))
 
 	return nil
 }
@@ -200,11 +200,11 @@ func (c *Client) Listening() error {
 	for {
 		select {
 		case <-resumeSignal: // 使用信号量控制连接立即重连
-			log.Println("%s, received resumeSignal signal", c.session)
+			log.Println(fmt.Sprintf("%v, received resumeSignal signal", c.session))
 			return errors.New("need reconnect")
 		case err := <-c.closeChan:
 			// 关闭连接的错误码 https://bot.q.qq.com/wiki/develop/api/gateway/error/error.html
-			log.Fatalln("%s Listening stop. err is %v", c.session, err)
+			fmt.Println(fmt.Sprintf("%v Listening stop. err is %v", c.session, err))
 			// 不能够 identify 的错误
 			//if websocket.IsCloseError(err, 4914, 4915) {
 			//	err = errs.New(errs.CodeConnCloseCantIdentify, err.Error())
@@ -216,7 +216,7 @@ func (c *Client) Listening() error {
 			//}
 			return err
 		case <-c.heartBeatTicker.C:
-			log.Println("%s listened heartBeat", c.session)
+			log.Println(fmt.Sprintf("%v listened heartBeat", c.session))
 			heartBeatEvent := &dto.WSPayload{
 				WSPayloadBase: dto.WSPayloadBase{
 					OPCode: dto.WSHeartbeat,
@@ -232,10 +232,10 @@ func (c *Client) Listening() error {
 // Write 往 ws 写入数据
 func (c *Client) Write(message *dto.WSPayload) error {
 	m, _ := json.Marshal(message)
-	log.Println("%s write %s message, %v", c.session, dto.OPMeans(message.OPCode), string(m))
+	log.Println(fmt.Sprintf("%v write %s message, %v", c.session, dto.OPMeans(message.OPCode), string(m)))
 
 	if err := c.conn.WriteMessage(websocket.TextMessage, m); err != nil {
-		log.Fatalln("%s WriteMessage failed, %v", c.session, err)
+		fmt.Println(fmt.Sprintf("%v WriteMessage failed, %v", c.session, err))
 		c.closeChan <- err
 		return err
 	}
@@ -245,7 +245,7 @@ func (c *Client) Write(message *dto.WSPayload) error {
 // Close 关闭连接
 func (c *Client) Close() {
 	if err := c.conn.Close(); err != nil {
-		log.Fatalln("%s, close conn err: %v", c.session, err)
+		fmt.Println(fmt.Sprintf("%v, close conn err: %v", c.session, err))
 	}
 	c.heartBeatTicker.Stop()
 }
@@ -254,18 +254,18 @@ func (c *Client) readMessageToQueue() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			fmt.Sprintf("%s read message failed, %v, message %s", c.session, err, string(message))
+			fmt.Println(fmt.Sprintf("%v read message failed, %v, message %s", c.session, err, string(message)))
 			close(c.messageQueue)
 			c.closeChan <- err
 			return
 		}
 		payload := &dto.WSPayload{}
 		if err := json.Unmarshal(message, payload); err != nil {
-			log.Fatalln("%s json failed, %v", c.session, err)
+			fmt.Println(fmt.Sprintf("%v json failed, %v", c.session, err))
 			continue
 		}
 		payload.RawMessage = message
-		fmt.Println("%s receive %s message, %s", c.session, dto.OPMeans(payload.OPCode), string(message))
+		fmt.Println(fmt.Sprintf("%v receive %s message, %s", c.session, dto.OPMeans(payload.OPCode), string(message)))
 		if c.isHandleBuildIn(payload) {
 			continue
 		}
@@ -294,7 +294,7 @@ func (c *Client) isHandleBuildIn(payload *dto.WSPayload) bool {
 func (c *Client) startHeartBeatTicker(message []byte) {
 	helloData := &dto.WSHelloData{}
 	if err := parseData(message, helloData); err != nil {
-		log.Fatalln("%s hello data parse failed, %v, message %v", c.session, err, message)
+		fmt.Println(fmt.Sprintf("%v hello data parse failed, %v, message %v", c.session, err, message))
 	}
 	// 根据 hello 的回包，重新设置心跳的定时器时间
 	c.heartBeatTicker.Reset(time.Duration(helloData.HeartbeatInterval) * time.Millisecond)
@@ -321,10 +321,10 @@ func (c *Client) listenMessageAndHandle() {
 		}
 		// 解析具体事件，并投递给业务注册的 handler
 		if err := dto.ParseAndHandle(payload); err != nil {
-			log.Fatalln("%s parseAndHandle failed, %v", c.session, payload)
+			fmt.Println(fmt.Sprintf("%v parseAndHandle failed, %v", c.session, payload))
 		}
 	}
-	log.Println("%s message queue is closed", c.session)
+	log.Println(fmt.Sprintf("%v message queue is closed", c.session))
 }
 
 // ParseAndHandle 处理回调事件
@@ -353,7 +353,7 @@ var PanicBufLen = 1024
 func PanicHandler(e interface{}, session *dto.Session) {
 	buf := make([]byte, PanicBufLen)
 	buf = buf[:runtime.Stack(buf, false)]
-	log.Fatalln("[PANIC]%s\n%v\n%s\n", session, e, buf)
+	fmt.Println(fmt.Sprintf("[PANIC]%v\n%v\n%s\n", session, e, buf))
 }
 
 func createTransport(localAddr net.Addr, idleConns int) *http.Transport {
